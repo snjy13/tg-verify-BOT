@@ -16,8 +16,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # === CONFIG ===
-BOT_TOKEN = "8189030419:AAE9we1eICwaWAC9uelwcwXtCamMA-DksSo"
-ADMIN_CHAT_ID = 9363023445  # ⚠️ Replace with your numeric Telegram user ID
+BOT_TOKEN = "8189030419:AAHgxSj7t4B5eOCUJ_I88R9bFOGBeCWlKqg"
+ADMIN_CHAT_ID = 6832347608  # ⚠️ Replace with your numeric Telegram user ID
 UPI_PAYMENT_LINK = "https://tinyurl.com/3kce3yxp"
 DRIVE_LINK = "https://drive.google.com/drive/folders/1nVV9Yx52bJNXy04jvrbdgPHlUvsSb0vv?usp=drive_link"
 
