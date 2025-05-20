@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # === CONFIG ===
 BOT_TOKEN = "8189030419:AAEwejgSfa9IxUziS7mF3_WiiJqxDDxWoR0"
 ADMIN_CHAT_ID = 9363023445  # ⚠️ Replace with your numeric Telegram user ID
-UPI_PAYMENT_LINK = "upi://pay?pa=sanjayrajamani01@okicici&pn=zolredine&am=30.00&cu=INR"
+UPI_PAYMENT_LINK = "https://tinyurl.com/3kce3yxp"
 DRIVE_LINK = "https://drive.google.com/drive/folders/1nVV9Yx52bJNXy04jvrbdgPHlUvsSb0vv?usp=drive_link"
 
 # Environment variables for webhook (when deployed)
