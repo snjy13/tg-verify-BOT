@@ -1,5 +1,7 @@
 import os
 import logging
+from flask import Flask
+from threading import Thread
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup
 )
@@ -17,13 +19,13 @@ logger = logging.getLogger(__name__)
 
 # === CONFIG ===
 BOT_TOKEN = "8189030419:AAFKA4GyyPxkurFRlNa_2swM-0sy831XceU"
-ADMIN_CHAT_ID = 6832347608  # Your personal numeric ID (not username) - the chat where you want to receive screenshots
+ADMIN_CHAT_ID = 6832347608  # Your numeric Telegram user ID
 UPI_PAYMENT_LINK = "https://tinyurl.com/3kce3yxp"
 DRIVE_LINK = "https://drive.google.com/drive/folders/1nVV9Yx52bJNXy04jvrbdgPHlUvsSb0vv?usp=drive_link"
 
-# Environment variables for webhook (when deployed)
+# Environment variables for webhook (not needed on Replit)
 PORT = int(os.environ.get('PORT', 4000))
-APP_URL = os.environ.get('APP_URL', None)  # Should be set in Render.com environment variables
+APP_URL = os.environ.get('APP_URL', None)
 
 # Counter to number each screenshot (in-memory — resets if bot restarts)
 payment_counter = 1
@@ -31,7 +33,17 @@ payment_counter = 1
 # Mapping to track which user submitted which number
 number_to_user = {}
 
-# /start handler
+# Flask web server to keep the Replit instance alive
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "✅ Telegram Bot is running!"
+
+def run_web():
+    app.run(host='0.0.0.0', port=8080)
+
+# /start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🔥 Pay Here 🔥", url=UPI_PAYMENT_LINK)]
@@ -46,7 +58,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-# Handler for images/screenshots
+# Handler for receiving payment screenshots
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global payment_counter
 
@@ -67,23 +79,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption = f"📩 Payment Screenshot #{payment_counter}\nUser ID: {user_id}\nUsername: @{username}\nName: {first_name}"
 
     try:
-        # Forward the screenshot to admin's private chat with the bot
         await context.bot.send_photo(
             chat_id=ADMIN_CHAT_ID,
             photo=photo,
             caption=caption,
             reply_markup=reply_markup
         )
-        
-        # Tell the user their screenshot was received
-        await update.message.reply_text("📤 Your payment screenshot has been received. Please wait while we verify your payment.")
+        await update.message.reply_text("📤 Screenshot received. Please wait while we verify your payment.")
     except Exception as e:
-        logger.error(f"Error forwarding photo to admin: {e}")
-        await update.message.reply_text("⚠️ There was an issue processing your payment. Please try again later.")
+        logger.error(f"Error forwarding photo: {e}")
+        await update.message.reply_text("⚠️ Error processing your payment. Please try again later.")
 
     payment_counter += 1
 
-# Callback handler for Accept/Decline buttons
+# Handler for Accept/Decline buttons
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -96,73 +105,51 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             if action == "accept":
-                # Send drive link to the original user in their private chat with the bot
                 await context.bot.send_message(
                     chat_id=user_id,
                     text=f"✅ Payment approved! 🎉\n\nHere's your reels drive link:\n{DRIVE_LINK}"
                 )
-                # Update message in admin chat to show it was approved
-                await query.edit_message_caption(caption=f"✅ Payment #{number} Approved and link sent to user.")
+                await query.edit_message_caption(caption=f"✅ Payment #{number} Approved and link sent.")
 
             elif action == "decline":
-                # Notify user that payment was declined
                 await context.bot.send_message(
                     chat_id=user_id,
-                    text="❌ Payment verification failed.\nPlease try again or contact support at zolredine@gmail.com for assistance."
+                    text="❌ Payment verification failed.\nPlease contact support: zolredine@gmail.com"
                 )
-                # Update message in admin chat
-                await query.edit_message_caption(caption=f"❌ Payment #{number} Declined and user notified.")
+                await query.edit_message_caption(caption=f"❌ Payment #{number} Declined.")
 
-            # Remove entry from mapping
             del number_to_user[number]
-        except Exception as e:
-            logger.error(f"Error handling callback: {e}")
-            await query.edit_message_caption(caption=f"⚠️ Error processing payment #{number}: {str(e)}")
 
+        except Exception as e:
+            logger.error(f"Callback error: {e}")
+            await query.edit_message_caption(caption=f"⚠️ Error processing payment #{number}: {str(e)}")
     else:
         await query.edit_message_caption(caption="⚠️ This payment number was already processed or is invalid.")
 
-
-# Error logging
+# Error handler
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
-    
-    # Notify about errors that might need immediate attention
     try:
         if update and update.effective_message:
-            await update.effective_message.reply_text(
-                "An error occurred while processing your request. Our team has been notified."
-            )
+            await update.effective_message.reply_text("An error occurred. Please try again later.")
     except:
         pass
 
 # Main function
 def main():
-    # Create the Application
+    # Start web server in a separate thread
+    Thread(target=run_web).start()
+
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_error_handler(error_handler)
 
-    # Start the Bot
-    if APP_URL:
-        # Use webhook mode for production (like on Render.com)
-        webhook_url = f"{APP_URL}/{BOT_TOKEN}"
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=BOT_TOKEN,
-            webhook_url=webhook_url
-        )
-        logger.info(f"Bot started in webhook mode on port {PORT}")
-        logger.info(f"Webhook URL: {webhook_url}")
-    else:
-        # Use polling for local development
-        application.run_polling(drop_pending_updates=True)
-        logger.info("Bot started in polling mode")
+    # Run in polling mode (good for Replit free tier)
+    application.run_polling(drop_pending_updates=True)
+    logger.info("Bot started in polling mode")
 
 if __name__ == "__main__":
     main()
