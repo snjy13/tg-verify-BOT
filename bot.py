@@ -24,7 +24,7 @@ UPI_PAYMENT_LINK = "https://tinyurl.com/3kce3yxp"
 DRIVE_LINK = "https://drive.google.com/drive/folders/1nVV9Yx52bJNXy04jvrbdgPHlUvsSb0vv?usp=drive_link"
 
 # Environment variables for webhook (not needed on Replit)
-PORT = int(os.environ.get('PORT', 4000))
+PORT = int(os.environ.get('PORT', 5000))
 APP_URL = os.environ.get('APP_URL', None)
 
 # Counter to number each screenshot (in-memory — resets if bot restarts)
